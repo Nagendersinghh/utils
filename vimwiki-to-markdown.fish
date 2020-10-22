@@ -110,6 +110,22 @@ function vimwiki_to_markdown -a vimwiki_file_path
         a manual review"
     end
 
+    # pandoc replaces tabs with spaces. This becomes a problem
+    # when the resultant markdown file needs to be further
+    # converted into other formats. Especially the nested lists,
+    # as markdown spec requires them to be indented by tabs (yeah,
+    # yeah, 4 spaces work as well. Fuck off!).
+    # So, converting spaces before list items to tabs so that
+    # further processing doesn't get fucked up.
+    gsed -i.bak \
+    -E ':f; s|^(\t)* {8}(\s*)([-*] )|\1\t\2\3|g; t f' \
+    $target_file_path
+ 
+    if test $status -gt 0
+        echo "Warning: Could not convert leading list spaces to tabs.
+        Please do a manual review."
+    end
+
     remove_bakup_file $target_file_path
 end
 

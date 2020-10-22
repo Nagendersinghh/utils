@@ -13,26 +13,40 @@
 # NOTE: If it doesn't work, make sure that the file is executable.
 # If not, you can make it executable using
 # `chmod u+x /path/to/this/file`
+function is_system_compatible
+    if type -q pandoc || type -q gawk
+        return 0
+    else
+        echo "Required programs not installed. Please install
+        them and try again"
+        return 1
+    end
+end
 
 function vimwiki_markdown_to_html --argument-names force syntax extension \
-    \output_dir input_file css_file template_path \
-    \template_default template_ext root_path custom_args
+    \output_dir input_file css_file template_path template_default \
+    \template_ext root_path custom_args
+
+    echo $force $syntax $extension $output_dir $input_file $css_file
+    echo $template_path $template_default $template_ext $root_path $custom_args
+    set replace_todo_lua_filter ~/Documents/utils/replace-todo-with-html.lua
+    set full_template_path = (string join "" $template_path $template_default $template_ext)
+
+    is_system_compatible; or exit 1
 
     set input_filename (basename $input_file | sed 's/\.[^.]*$//')
     set output_path (string join "" $output_dir $input_filename ".html")
 
-    if type -q pandoc
-        pandoc -f $syntax -t html -c (basename $css_file) $input_file | \
-        sed -e 's;<span class="done0"></span>;[ ] ;' \
-        -e 's;<span class="done1"></span>;[.] ;' \
-        -e 's;<span class="done2"></span>;[o] ;' \
-        -e 's;<span class="done3"></span>;[O] ;' \
-        -e 's;<span class="done4"></span>;[X] ;' \
-        >$output_path
-    else
-        echo "Error: pandoc isn't installed."
-        exit 1
-    end
+    # Add .html to local wiki links
+    gawk -f ~/Documents/utils/add-html-to-naked-links.awk $input_file |
+    pandoc -f $syntax \
+    --lua-filter=$replace_todo_lua_filter \
+    -t html \
+    --css (basename $css_file) \
+    -s \
+    --template=$full_template_path \
+    -o $output_path
+
 end
 
 vimwiki_markdown_to_html $argv
